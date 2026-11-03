@@ -2,345 +2,145 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>ART QUEST 地図</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ART QUEST ～秘密の鍵を探して～</title>
 <style>
-  :root{
-    --gold:#f5c542; --gold-deep:#c99a1e;
-    --sky1:#141838; --sky2:#2b2f63;
-    --lit:#ffd86b; --dark-window:#2a2f55;
-  }
-  html,body{margin:0;height:100%;background:var(--sky1);color:#fff;
-    font-family:"Hiragino Maru Gothic ProN","Zen Maru Gothic","Meiryo",sans-serif;overflow:hidden}
-  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
-    padding:12px 16px;background:linear-gradient(rgba(20,24,56,.95),rgba(20,24,56,0));pointer-events:none}
-  header h1{margin:0;font-size:18px;letter-spacing:.15em}
-  #count{font-weight:bold;color:var(--gold);font-size:16px}
-  #scroller{position:absolute;inset:0;overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scroll-behavior:smooth}
-  #town{display:block;height:100%}
-  #hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);font-size:13px;opacity:.75;z-index:4;white-space:nowrap}
+:root{
+  --gold:#F5C542; --gold-deep:#C99A1E; --ink:#3A2A00;
+  --mincho:"Hiragino Mincho ProN","Yu Mincho","YuMincho","HGS明朝E",Georgia,serif;
+  /* 入口の絵は 1122 × 1402 */
+  --h:100dvh;
+  --w:calc(var(--h) * 1122 / 1402);
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;overflow:hidden;background:#3A2414}
+body{font-family:var(--mincho);color:#FFF8E8}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
 
-  .house{cursor:pointer}
-  .house .win{fill:var(--dark-window);transition:fill .8s}
-  .house.lit .win{fill:var(--lit);filter:url(#glow)}
-  .house .keymark{opacity:0;transition:opacity .8s}
-  .house.lit .keymark{opacity:1}
-  .house.just .keymark{animation:pop 1s ease-out}
-  @keyframes pop{0%{transform:scale(0)}60%{transform:scale(1.4)}100%{transform:scale(1)}}
-  .house .keymark{transform-box:fill-box;transform-origin:center}
+/* パソコンなど横長の画面：絵のまわりは、同じ絵をぼかして敷きます */
+#blur{position:fixed;inset:-40px;background:url(gate-blur.jpg) center/cover;filter:blur(24px) brightness(.8)}
 
-  /* 宝箱 */
-  #chest{cursor:pointer;transform-box:fill-box;transform-origin:50% 100%}
-  #chest .trim{fill:#7a5230;transition:fill .8s}
-  #chest .spark{opacity:0;transition:opacity .8s}
-  #chest .leak{opacity:0;transition:opacity .8s}
-  #chest .inner{opacity:0}
-  #lid{transform-box:fill-box;transform-origin:50% 100%;transition:transform 1.2s cubic-bezier(.3,1.4,.5,1)}
-  #chest.s1 .spark.a{opacity:1}
-  #chest.s2 .spark{opacity:1} #chest.s2 .trim{fill:var(--gold-deep)}
-  #chest.s3 .spark{opacity:1} #chest.s3 .trim{fill:var(--gold)} #chest.s3 .leak{opacity:.9}
-  #chest.s4 .spark{opacity:1} #chest.s4 .trim{fill:var(--gold)} #chest.s4 .inner{opacity:1}
-  #chest.s4 #lid{transform:translateY(-34px) rotate(-18deg)}
-  #chest.wobble{animation:wobble 2.2s infinite}
-  @keyframes wobble{
-    0%,70%,100%{transform:rotate(0)}
-    74%{transform:rotate(-3deg)} 78%{transform:rotate(3deg)}
-    82%{transform:rotate(-2deg)} 86%{transform:rotate(2deg)} 90%{transform:rotate(0)}
-  }
-  .spark{animation:twinkle 1.6s infinite alternate}
-  @keyframes twinkle{from{filter:brightness(.7)}to{filter:brightness(1.4)}}
+/* 絵（高さいっぱい。スマホでは左右が少し切れます） */
+#stage{position:fixed;top:0;left:50%;height:var(--h);width:var(--w);transform:translateX(-50%);
+  transform-origin:51% 46%;transition:transform 1.4s cubic-bezier(.6,0,.3,1)}
+#stage img{width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none}
+/* ランタンの灯りをゆらす */
+.lamp{position:absolute;width:13%;aspect-ratio:1;border-radius:50%;transform:translate(-50%,-50%);
+  background:radial-gradient(closest-side,rgba(255,206,120,.75),rgba(255,180,80,0));
+  mix-blend-mode:screen;animation:flick 3.4s ease-in-out infinite;pointer-events:none}
+@keyframes flick{0%,100%{opacity:.55}30%{opacity:.9}55%{opacity:.65}75%{opacity:1}}
+/* 舞い落ちる葉 */
+.leaf{position:absolute;top:-6%;width:2.2%;aspect-ratio:1.3;border-radius:0 80% 0 80%;opacity:.9;
+  animation:fall linear infinite;pointer-events:none}
+@keyframes fall{
+  0%{transform:translate(0,0) rotate(0)}
+  50%{transform:translate(6vh,55vh) rotate(200deg)}
+  100%{transform:translate(-2vh,110vh) rotate(420deg)}}
 
-  /* トースト */
-  #toast{white-space:nowrap;position:fixed;top:64px;left:50%;transform:translate(-50%,-20px);background:var(--gold);color:#3a2a00;
-    padding:10px 18px;border-radius:999px;font-weight:bold;opacity:0;transition:.4s;z-index:10;pointer-events:none}
-  #toast.show{opacity:1;transform:translate(-50%,0)}
+/* 文字 */
+#panel{position:fixed;left:0;right:0;bottom:0;z-index:5;text-align:center;
+  padding:28vh 20px calc(26px + env(safe-area-inset-bottom));
+  background:linear-gradient(180deg,rgba(40,20,6,0),rgba(40,20,6,.55) 38%,rgba(30,14,4,.86));
+  transition:opacity .7s}
+.eyebrow{font-size:clamp(11px,3vw,13px);letter-spacing:.5em;text-indent:.5em;color:#FFE2A8;opacity:.95}
+h1{font-weight:400;font-size:clamp(34px,10vw,58px);letter-spacing:.14em;text-indent:.14em;line-height:1.2;margin:10px 0 4px;
+  color:#FFF6DC;text-shadow:0 2px 6px rgba(60,25,0,.7),0 0 24px rgba(255,190,90,.55)}
+.sub{font-size:clamp(14px,4vw,19px);letter-spacing:.24em;text-indent:.24em;color:#FFE9BC;
+  text-shadow:0 1px 4px rgba(60,25,0,.8)}
+.lead{margin:16px auto 0;max-width:30em;font-size:clamp(12px,3.4vw,14px);line-height:2;letter-spacing:.08em;color:#FFF1D6;
+  text-shadow:0 1px 3px rgba(40,15,0,.9)}
+.period{margin-top:10px;font-size:clamp(11px,3vw,12.5px);letter-spacing:.2em;color:#FFD98A}
+#enter{margin-top:22px;padding:14px 46px;border-radius:999px;
+  font-size:clamp(14px,4vw,16px);letter-spacing:.44em;text-indent:.44em;font-weight:bold;color:var(--ink);
+  background:linear-gradient(180deg,#FCE6A0,var(--gold) 55%,var(--gold-deep));
+  box-shadow:0 0 0 2px #FFF4C8,0 6px 20px rgba(0,0,0,.35),0 0 30px rgba(255,200,90,.55);
+  animation:call 2.8s ease-in-out infinite}
+#enter:hover{filter:brightness(1.08)}
+@keyframes call{50%{box-shadow:0 0 0 2px #FFF4C8,0 6px 20px rgba(0,0,0,.35),0 0 46px rgba(255,210,110,.9)}}
 
-  /* 完成オーバーレイ */
-  #finale{position:fixed;inset:0;background:rgba(10,12,30,.88);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
-  #finale.show{display:flex}
-  .card{background:#fffaf0;color:#3a2a00;border-radius:18px;max-width:420px;width:100%;padding:24px;text-align:center;
-    box-shadow:0 0 40px rgba(245,197,66,.6)}
-  .card h2{margin:0 0 8px;font-size:22px}
-  .card p{line-height:1.8;font-size:14px}
-  .cal-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-  .cal{border:2px solid transparent;border-radius:12px;padding:8px 4px;cursor:pointer;background:#f3e7c9;font-size:12px}
-  .cal .thumb{height:60px;border-radius:8px;margin-bottom:6px}
-  .cal.sel{border-color:var(--gold-deep)}
-  .btn{margin-top:16px;background:var(--gold);border:none;border-radius:999px;padding:10px 24px;font-weight:bold;font-size:15px;cursor:pointer;color:#3a2a00}
-  .btn:disabled{opacity:.4}
-  .close{background:none;border:none;color:#8a7650;margin-top:8px;cursor:pointer;font-size:13px}
+/* ENTER：アーチの奥へ吸い込まれるように進んで、光の中へ */
+#glow{position:fixed;inset:0;z-index:9;pointer-events:none;opacity:0;transition:opacity .9s ease .5s;
+  background:radial-gradient(circle at 50% 46%,#FFF8E2,#FFE6A8 45%,#F7C766)}
+body.go #stage{transform:translateX(-50%) scale(2.6)}
+body.go #panel{opacity:0}
+body.go #glow{opacity:1}
 
-  #debug{position:fixed;right:10px;bottom:40px;z-index:30;display:none;gap:6px;flex-direction:column}
-  #debug button{font-size:12px;padding:6px 8px}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none !important;transition-duration:.01ms !important}
+}
 </style>
 </head>
 <body>
-<header><h1>ART QUEST</h1><div id="count">🔑 0 / 15</div></header>
-<div id="scroller"><svg id="town" viewBox="0 0 2560 600" preserveAspectRatio="xMidYMid meet"></svg></div>
-<div id="hint">← 左右にスクロールして街を歩こう →</div>
-<div id="toast"></div>
+<div id="blur"></div>
+<div id="stage"><img src="gate.jpg" alt="街の入口の門"></div>
 
-<div id="finale"><div class="card" id="finaleCard"></div></div>
-
-<div id="debug">
-  <button data-d="14">テスト：14個にする</button>
-  <button data-d="15">テスト：15個にする</button>
-  <button data-d="0">テスト：リセット</button>
+<div id="panel">
+  <div class="eyebrow" id="eyebrow"></div>
+  <h1 id="title"></h1>
+  <div class="sub" id="sub"></div>
+  <p class="lead" id="lead"></p>
+  <div class="period" id="period"></div>
+  <button id="enter">ENTER</button>
 </div>
+<div id="glow"></div>
 
 <script>
-/* ===================== 設定 ===================== */
-// 各ROOMのURL。01から順番に。未公開の部屋は "" のまま。
-// 本番では "https://ユーザー名.github.io/リポジトリ名/" の形に書き換える
-const ROOMS = [
-  "https://lina-ai-works.github.io/artquest-room01/",
-  "https://kaolinreb-blip.github.io/artquest-room/",
-  "", "", "", "", "", "", "", "", "", "", "", "", ""
-];
-const TOTAL = 15;
-const STORE_KEY = "artquest_keys_v1";
-const CAL_KEY = "artquest_calendar_v1";
-const CALENDARS = [
-  { id:"hoshi",  name:"カレンダーA", bg:"linear-gradient(135deg,#2b2f63,#7b6fd6)" },
-  { id:"sweets", name:"カレンダーB", bg:"linear-gradient(135deg,#ffb6c9,#ffe3a3)" },
-  { id:"forest", name:"カレンダーC", bg:"linear-gradient(135deg,#2f6b4f,#b6e3a3)" }
-];
-const STAGE_TEXT = [
-  "宝箱はまだ眠っている…",
-  "宝箱がかすかに光りはじめた",
-  "宝箱の金具が輝いている",
-  "宝箱から光がもれている！",
-  "宝箱が開いた！"
-];
+/* ============================================================
+   ★ ここだけ書き換えてください ★
+   ============================================================ */
+const GATE = {
+  eyebrow: "アートの秋",
+  title:   "ART QUEST",
+  sub:     "～秘密の鍵を探して～",
+  lead:    "18の部屋に、秘密の鍵が隠されています。\n街をめぐって鍵を集め、宝箱を開けよう。",
+  period:  "2026.11.14 ― 11.30",
+  map:     "map/"          // 地図の場所（このページからの位置）
+};
 
-/* ===================== 保存まわり ===================== */
-function loadKeys(){
-  try{ const a = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
-       return new Set(Array.isArray(a) ? a.filter(isValidKey) : []); }
-  catch(e){ return new Set(); }
-}
-function saveKeys(set){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify([...set].sort())); }catch(e){}
-}
-function isValidKey(k){ return /^(0[1-9]|1[0-5])$/.test(k); }
-function pad(n){ return String(n).padStart(2,"0"); }
+/* ============================================================
+   ここから下は触らなくて大丈夫です
+   ============================================================ */
+const $ = s => document.querySelector(s);
+$('#eyebrow').textContent = GATE.eyebrow;
+$('#title').textContent   = GATE.title;
+$('#sub').textContent     = GATE.sub;
+$('#lead').innerHTML      = GATE.lead.split('\n').map(t => t.replace(/&/g,'&amp;').replace(/</g,'&lt;')).join('<br>');
+$('#period').textContent  = GATE.period;
+document.title = GATE.title + ' ' + GATE.sub;
 
-/* ===================== 街を描く ===================== */
-const NS = "http://www.w3.org/2000/svg";
-const svg = document.getElementById("town");
-function el(tag, attrs, parent){
-  const e = document.createElementNS(NS, tag);
-  for(const k in attrs) e.setAttribute(k, attrs[k]);
-  if(parent) parent.appendChild(e);
-  return e;
-}
-const GROUND = 480, HW = 110;
-const PALETTE = ["#8e6fb5","#d98b8b","#6f9fb5","#c9a36b","#7fae8a","#b57fa6","#9a8fd0","#d1a06f"];
-const ROOFS   = ["#4a3a6b","#8a3f4f","#3b5a7a","#7a5a2f","#3f6b4f","#6b3f5f","#4f4a8a","#8a5a3f"];
-
-function houseX(i){ return i < 7 ? 60 + i*145 : 1360 + (i-7)*145; }
-
-function drawTown(){
-  const defs = el("defs",{},svg);
-  defs.innerHTML = `
-    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#141838"/><stop offset="1" stop-color="#2b2f63"/>
-    </linearGradient>
-    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
-    </filter>
-    <radialGradient id="leak" cx=".5" cy=".5" r=".5">
-      <stop offset="0" stop-color="#fff3b0" stop-opacity="1"/><stop offset="1" stop-color="#ffd86b" stop-opacity="0"/>
-    </radialGradient>
-    <symbol id="key" viewBox="0 0 40 20">
-      <circle cx="8" cy="10" r="6.5" fill="none" stroke="#f5c542" stroke-width="3.5"/>
-      <rect x="14" y="8.2" width="24" height="3.6" fill="#f5c542"/>
-      <rect x="30" y="11" width="3.5" height="6" fill="#f5c542"/><rect x="24" y="11" width="3.5" height="4.5" fill="#f5c542"/>
-    </symbol>`;
-  el("rect",{x:0,y:0,width:2560,height:600,fill:"url(#sky)"},svg);
-  // 星
-  for(let i=0;i<70;i++){
-    el("circle",{cx:(i*397)%2560, cy:20+(i*131)%220, r:(i%3)+0.8, fill:"#fff", opacity:.3+(i%5)*.12},svg);
-  }
-  el("circle",{cx:2300,cy:90,r:38,fill:"#fff6d6",opacity:.9},svg); // 月
-  // 地面と広場
-  el("rect",{x:0,y:GROUND,width:2560,height:120,fill:"#1d2147"},svg);
-  el("ellipse",{cx:1200,cy:GROUND+20,rx:170,ry:34,fill:"#3a3f72"},svg);
-
-  for(let i=0;i<TOTAL;i++){
-    const no = pad(i+1), x = houseX(i);
-    const h = 170 + (i*37)%90;
-    const top = GROUND - h;
-    const g = el("g",{class:"house","data-no":no},svg);
-    el("rect",{x, y:top, width:HW, height:h, fill:PALETTE[i%8], rx:4},g);
-    el("polygon",{points:`${x-10},${top} ${x+HW/2},${top-55-(i%3)*12} ${x+HW+10},${top}`, fill:ROOFS[i%8]},g);
-    // 窓
-    el("rect",{class:"win", x:x+18, y:top+24, width:28, height:30, rx:3},g);
-    el("rect",{class:"win", x:x+HW-46, y:top+24, width:28, height:30, rx:3},g);
-    // ドア
-    el("rect",{x:x+HW/2-17, y:GROUND-52, width:34, height:52, rx:14, fill:"#3a2a40"},g);
-    const t = el("text",{x:x+HW/2, y:GROUND-24, "text-anchor":"middle","font-size":14,fill:"#fff","font-weight":"bold"},g);
-    t.textContent = no;
-    // 鍵マーク
-    const km = el("g",{class:"keymark"},g);
-    el("circle",{cx:x+HW/2, cy:GROUND-78, r:17, fill:"#3a2a00", opacity:.6},km);
-    el("use",{href:"#key", x:x+HW/2-15, y:GROUND-86, width:30, height:15},km);
-
-    if(!ROOMS[i]) g.setAttribute("opacity", ".55");
-    g.addEventListener("click", ()=>{
-      if(ROOMS[i]) location.href = ROOMS[i];
-      else toast(`ROOM ${no} は準備中です`);
-    });
-  }
-  drawChest();
-}
-
-function drawChest(){
-  const c = el("g",{id:"chest"},svg);
-  const cx = 1200, base = GROUND+6;
-  // 中の光（開いた時）
-  el("ellipse",{class:"inner", cx, cy:base-70, rx:90, ry:60, fill:"url(#leak)"},c);
-  // 本体
-  el("rect",{x:cx-75, y:base-70, width:150, height:70, rx:6, fill:"#8b5a2b"},c);
-  el("rect",{class:"trim", x:cx-75, y:base-70, width:150, height:10},c);
-  el("rect",{class:"trim", x:cx-80, y:base-70, width:12, height:70},c);
-  el("rect",{class:"trim", x:cx+68, y:base-70, width:12, height:70},c);
-  // すきまの光
-  el("ellipse",{class:"leak", cx, cy:base-70, rx:80, ry:10, fill:"url(#leak)"},c);
-  // ふた
-  const lid = el("g",{id:"lid"},c);
-  el("path",{d:`M${cx-78} ${base-70} L${cx-78} ${base-100} Q${cx} ${base-140} ${cx+78} ${base-100} L${cx+78} ${base-70} Z`, fill:"#9b6634"},lid);
-  el("rect",{class:"trim", x:cx-80, y:base-80, width:160, height:10},lid);
-  el("rect",{class:"trim", x:cx-12, y:base-86, width:24, height:28, rx:4},lid);
-  // きらきら
-  [[-95,-120,"a"],[100,-110,""],[-60,-150,""],[70,-160,"a"],[0,-175,""]].forEach(([dx,dy,k])=>{
-    el("path",{class:"spark "+k, d:`M${cx+dx} ${base+dy-8} L${cx+dx+3} ${base+dy} L${cx+dx} ${base+dy+8} L${cx+dx-3} ${base+dy} Z`, fill:"#fff3b0"},c);
-  });
-  const label = el("text",{id:"chestText", x:cx, y:base+50, "text-anchor":"middle","font-size":16,fill:"#f5e6b8"},svg);
-  c.addEventListener("click", ()=>{
-    const n = loadKeys().size;
-    if(n >= TOTAL) showFinale();
-    else toast(`あと ${TOTAL-n} 個の鍵で宝箱が開くよ`);
-  });
-}
-
-/* ===================== 状態の反映 ===================== */
-function stageOf(n){ return n===0?0 : n<=4?1 : n<=9?2 : n<=14?3 : 4; }
-
-function render(justNo){
-  const keys = loadKeys(), n = keys.size, s = stageOf(n);
-  document.getElementById("count").textContent = `🔑 ${n} / ${TOTAL}`;
-  document.querySelectorAll(".house").forEach(h=>{
-    h.classList.toggle("lit", keys.has(h.dataset.no));
-    h.classList.toggle("just", h.dataset.no === justNo);
-  });
-  const chest = document.getElementById("chest");
-  chest.setAttribute("class", "s"+s + (n === TOTAL-1 ? " wobble" : ""));
-  document.getElementById("chestText").textContent =
-    n === TOTAL-1 ? "あと1個！宝箱がカタカタ揺れている…" : STAGE_TEXT[s];
-}
-
-/* ===================== 画面サイズ ===================== */
-function fit(){
-  svg.style.width = (window.innerHeight * 2560/600) + "px";
-}
-
-/* ===================== トースト ===================== */
-let toastTimer;
-function toast(msg){
-  const t = document.getElementById("toast");
-  t.textContent = msg; t.classList.add("show");
-  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
-}
-
-/* ===================== スクロール ===================== */
-function scrollToX(svgX, smooth){
-  const sc = document.getElementById("scroller");
-  const px = svgX * (svg.clientWidth/2560) - window.innerWidth/2;
-  sc.style.scrollBehavior = smooth ? "smooth" : "auto";
-  sc.scrollLeft = Math.max(0, px);
-}
-
-/* ===================== 完成 ===================== */
-function showFinale(){
-  let chosen = null;
-  try{ chosen = localStorage.getItem(CAL_KEY); }catch(e){}
-  const card = document.getElementById("finaleCard");
-  card.innerHTML = `
-    <h2>🎉 宝箱が開いた！</h2>
-    <p>15の部屋をめぐって、すべての鍵を集めました。<br>街のみんなから、あなたへのおくりもの。</p>
-    <p><b>好きなカレンダーをひとつ選んでね</b></p>
-    <div class="cal-list">${CALENDARS.map(c=>`
-      <div class="cal ${chosen===c.id?'sel':''}" data-id="${c.id}">
-        <div class="thumb" style="background:${c.bg}"></div>${c.name}
-      </div>`).join("")}
-    </div>
-    <button class="btn" id="decide" ${chosen?'':'disabled'}>これにする</button><br>
-    <button class="close" id="closeFinale">とじる</button>`;
-  card.querySelectorAll(".cal").forEach(c=>c.addEventListener("click",()=>{
-    card.querySelectorAll(".cal").forEach(x=>x.classList.remove("sel"));
-    c.classList.add("sel"); chosen = c.dataset.id;
-    document.getElementById("decide").disabled = false;
-  }));
-  document.getElementById("decide").onclick = ()=>{
-    try{ localStorage.setItem(CAL_KEY, chosen); }catch(e){}
-    const cal = CALENDARS.find(c=>c.id===chosen);
-    card.innerHTML = `<h2>${cal.name}</h2>
-      <div class="thumb" style="height:160px;border-radius:12px;background:${cal.bg}"></div>
-      <p>（試作：ここでダウンロードやリンクを出す予定）</p>
-      <button class="btn" id="closeFinale">地図に戻る</button>`;
-    document.getElementById("closeFinale").onclick = hideFinale;
-  };
-  document.getElementById("closeFinale").onclick = hideFinale;
-  document.getElementById("finale").classList.add("show");
-}
-function hideFinale(){ document.getElementById("finale").classList.remove("show"); }
-
-/* ===================== 起動 ===================== */
-drawTown();
-fit();
-window.addEventListener("resize", fit);
-
-const params = new URLSearchParams(location.search);
-const incoming = params.get("key");
-let justNo = null;
-
-if(incoming !== null){
-  if(isValidKey(incoming)){
-    const keys = loadKeys();
-    const isNew = !keys.has(incoming);
-    keys.add(incoming); saveKeys(keys);
-    justNo = isNew ? incoming : null;
-    toast(isNew ? `🔑 鍵${incoming}を記録しました！` : `鍵${incoming}はもう記録ずみです`);
-  }
-  // URLから ?key= を消す（リロードや共有で残らないように）
-  params.delete("key");
-  const q = params.toString();
-  history.replaceState(null, "", location.pathname + (q ? "?"+q : "") + location.hash);
-}
-
-render(justNo);
-
-// 戻ってきた家を画面の中央に。初回は広場（宝箱）を中央に
-requestAnimationFrame(()=>{
-  if(justNo){ scrollToX(houseX(+justNo-1)+HW/2, false); }
-  else scrollToX(1200, false);
+/* ランタン（絵の中の位置） */
+[[23.6,29.5],[74.3,29.5]].forEach(([x,y], i) => {
+  const l = document.createElement('span');
+  l.className = 'lamp';
+  l.style.left = x + '%'; l.style.top = y + '%';
+  l.style.animationDelay = (-i * 1.3) + 's';
+  $('#stage').appendChild(l);
 });
-
-if(justNo && loadKeys().size === TOTAL){
-  setTimeout(()=>{ scrollToX(1200, true); }, 1200);
-  setTimeout(showFinale, 2400);
+/* 舞い落ちる葉 */
+const COLORS = ['#E8542A','#F08A2C','#F5B53A','#D9452A','#F7C948'];
+for (let i = 0; i < 9; i++){
+  const f = document.createElement('span');
+  f.className = 'leaf';
+  f.style.left = (5 + Math.random() * 85) + '%';
+  f.style.background = COLORS[i % COLORS.length];
+  f.style.animationDuration = (9 + Math.random() * 7) + 's';
+  f.style.animationDelay = (-Math.random() * 14) + 's';
+  f.style.scale = (0.7 + Math.random() * 0.7).toFixed(2);
+  $('#stage').appendChild(f);
 }
 
-// テスト用ボタン：地図のURLに ?debug=1 を付けると表示
-if(params.get("debug") === "1"){
-  const d = document.getElementById("debug"); d.style.display = "flex";
-  d.querySelectorAll("button").forEach(b=>b.onclick = ()=>{
-    const n = +b.dataset.d, s = new Set();
-    for(let i=1;i<=n;i++) s.add(pad(i));
-    saveKeys(s); render(null);
-  });
-}
+let going = false;
+$('#enter').addEventListener('click', () => {
+  if (going) return;
+  going = true;
+  document.body.classList.add('go');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  setTimeout(() => { location.href = GATE.map; }, reduce ? 50 : 1500);
+});
+/* 戻るボタンで入口に戻ってきたとき、もとの姿に戻す */
+window.addEventListener('pageshow', e => {
+  if (e.persisted){ going = false; document.body.classList.remove('go'); }
+});
 </script>
 </body>
 </html>
