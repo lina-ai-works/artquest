@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ART QUEST 地図</title>
+<style>
+  :root{ --gold:#f5c542; --gold-deep:#c99a1e; --ink:#3a2a00; }
+  html,body{margin:0;height:100%;background:#2a5e86;color:#fff;
+    font-family:"Hiragino Maru Gothic ProN","Zen Maru Gothic","Meiryo",sans-serif;overflow:hidden}
+  header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;justify-content:space-between;align-items:center;
+    padding:10px 16px 26px;background:linear-gradient(rgba(60,35,10,.7),rgba(60,35,10,0));pointer-events:none}
+  header h1{margin:0;font-size:18px;letter-spacing:.15em;text-shadow:0 2px 6px rgba(0,0,0,.6)}
+  header .hr{display:flex;align-items:center;gap:8px}
+  #help{pointer-events:auto;width:32px;height:32px;border-radius:50%;border:2px solid #fff6d0;cursor:pointer;
+    background:linear-gradient(180deg,#FBE08A,var(--gold));color:var(--ink);font-weight:bold;font-size:16px;line-height:1;padding:0;
+    box-shadow:0 2px 8px rgba(0,0,0,.3)}
+  #count{font-weight:bold;color:#3a2a00;background:var(--gold);border-radius:999px;padding:4px 12px;font-size:15px;
+    box-shadow:0 2px 8px rgba(0,0,0,.3)}
+
+  #scroller{position:fixed;inset:0;overflow:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;cursor:grab}
+  #scroller::-webkit-scrollbar{display:none}
+  #scroller.drag{cursor:grabbing}
+  /* 絵の比率 1983:793 を保ったまま、画面の高さいっぱい（横は最低でも画面幅） */
+  #town{--h:max(100dvh, calc(100vw * 793 / 1983));position:relative;overflow:hidden;height:var(--h);width:calc(var(--h) * 1983 / 793)}
+  #town img.bg{position:absolute;inset:0;width:100%;height:100%;display:block;user-select:none;-webkit-user-drag:none}
+
+  /* 家（座標は絵に対する％） */
+  .house{position:absolute;transform:translate(-50%,-50%);width:7%;aspect-ratio:1;border:none;background:none;padding:0;cursor:pointer}
+  .house::before{ /* 窓の灯り：家全体がふわっと温かく光る */
+    content:"";position:absolute;inset:-25%;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,220,120,.7) 0%,rgba(255,190,60,.35) 35%,rgba(255,170,40,0) 70%);
+    mix-blend-mode:screen;opacity:0;transition:opacity 1s;pointer-events:none}
+  .house.lit::before{opacity:1;animation:flicker 3s ease-in-out infinite}
+  @keyframes flicker{50%{opacity:.75}}
+  .house .num{position:absolute;left:50%;bottom:-6%;transform:translateX(-50%);
+    background:rgba(60,35,10,.75);color:#fff;font-size:clamp(10px,1.6vh,14px);font-weight:bold;
+    border-radius:999px;padding:1px 8px;white-space:nowrap}
+  .house.lit .num{background:var(--gold);color:var(--ink)}
+  .house .badge{position:absolute;left:50%;top:-8%;transform:translate(-50%,0) scale(0);
+    width:clamp(28px,5.5vh,46px);aspect-ratio:1;border-radius:50%;background:#fff8dc;
+    box-shadow:0 0 0 3px var(--gold),0 0 16px rgba(255,210,80,.9);display:flex;align-items:center;justify-content:center;
+    transition:transform .5s cubic-bezier(.3,1.6,.5,1)}
+  .house .badge svg{width:70%}
+  .house.lit .badge{transform:translate(-50%,0) scale(1)}
+  .house.just .badge{animation:pop 1.1s ease-out}
+  /* 作家さんの鍵の絵（keys/key01.png …）があるときは、丸をなくして鍵そのものを浮かせる */
+  .house .badge.own{background:none;box-shadow:none;border-radius:0;
+    width:clamp(46px,9.5vh,86px);top:-24%}
+  .house .badge.own img{width:100%;height:100%;object-fit:contain;display:block;
+    filter:drop-shadow(0 0 3px rgba(255,226,140,.95)) drop-shadow(0 0 12px rgba(255,200,80,.75)) drop-shadow(0 3px 3px rgba(0,0,0,.35));
+    animation:hover 3.2s ease-in-out infinite;-webkit-user-drag:none;user-select:none}
+  @keyframes hover{50%{transform:translateY(-9%)}}
+  @keyframes pop{0%{transform:translate(-50%,-80%) scale(0)}60%{transform:translate(-50%,0) scale(1.4)}100%{transform:translate(-50%,0) scale(1)}}
+  /* 絵の上のはしに近い家は、鍵を家の右横に出す（上に出すと切れてしまうため） */
+  .house.edge .badge{top:38%;left:100%;transform:translate(0,0) scale(0)}
+  .house.edge.lit .badge{transform:translate(0,0) scale(1)}
+  .house.edge .badge.own{top:28%}
+  .house.soon{opacity:.85}
+
+  /* 真ん中の館：タップするとクエストの説明 */
+  #hall{position:absolute;transform:translate(-50%,-50%);width:11%;aspect-ratio:1.2;border:none;background:none;padding:0;cursor:pointer}
+  #hall .label{position:absolute;left:50%;bottom:4%;transform:translateX(-50%);white-space:nowrap;
+    background:linear-gradient(180deg,#FBE08A,var(--gold));color:var(--ink);font-weight:bold;
+    font-size:clamp(11px,1.7vh,14px);padding:4px 12px;border-radius:999px;
+    box-shadow:0 0 0 2px #fff6d0,0 3px 10px rgba(0,0,0,.35);animation:call 2.6s ease-in-out infinite}
+  @keyframes call{50%{transform:translateX(-50%) translateY(-4px)}}
+  #intro{position:fixed;inset:0;background:rgba(30,20,5,.8);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  #intro.show{display:flex}
+  #intro .card{text-align:left;max-height:calc(100dvh - 32px);overflow-y:auto}
+  #intro h2{text-align:center}
+  #intro ol{margin:12px 0 0;padding-left:1.4em;line-height:1.85;font-size:14px}
+  #intro li{margin-bottom:8px}
+  #intro .note{font-size:12px;color:#7a6a45;line-height:1.8;background:#f6ecd2;border-radius:10px;padding:10px 12px;margin-top:10px}
+  #intro .center{text-align:center}
+  .house.soon .num{background:rgba(60,35,10,.45)}
+
+  /* 宝箱：5段階の絵を重ねて、段階が上がるとふわっと切り替わる */
+  #chestWrap{position:absolute;transform:translate(-50%,-66%);width:10%;cursor:pointer;border:none;background:none;padding:0}
+  #chest{position:relative;width:100%;aspect-ratio:483/520;transform-origin:50% 90%}
+  #chest img{position:absolute;inset:0;width:100%;height:100%;opacity:0;transition:opacity 1.2s;
+    filter:drop-shadow(0 8px 6px rgba(60,30,0,.45));user-select:none;-webkit-user-drag:none}
+  #chest img.on{opacity:1}
+  #chest::before{ /* 足元の光（10個〜） */
+    content:"";position:absolute;left:-30%;right:-30%;top:10%;bottom:-15%;border-radius:50%;
+    background:radial-gradient(circle,rgba(255,225,130,.75),rgba(255,200,80,0) 65%);opacity:0;transition:opacity 1.2s}
+  #chest.s3::before{opacity:.8;animation:breathe 2.4s ease-in-out infinite}
+  #chest.s4::before{opacity:1}
+  @keyframes breathe{50%{opacity:.45}}
+  #chest.wobble{animation:wobble 2.2s infinite}
+  @keyframes wobble{0%,70%,100%{transform:rotate(0)}74%{transform:rotate(-4deg)}78%{transform:rotate(4deg)}82%{transform:rotate(-3deg)}86%{transform:rotate(3deg)}90%{transform:rotate(0)}}
+  #chest.opening{animation:opening 1.4s ease-out}
+  @keyframes opening{0%{transform:scale(1)}30%{transform:scale(.92,1.06)}55%{transform:scale(1.12)}100%{transform:scale(1)}}
+  #chestText{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:4px;white-space:nowrap;
+    background:rgba(60,35,10,.78);color:#fff3c8;font-size:clamp(11px,1.8vh,15px);padding:4px 12px;border-radius:999px}
+
+  #hint{position:fixed;bottom:12px;left:50%;transform:translateX(-50%);font-size:13px;z-index:4;white-space:nowrap;
+    background:rgba(60,35,10,.6);padding:4px 14px;border-radius:999px;pointer-events:none;transition:opacity .6s}
+
+  #toast{white-space:nowrap;position:fixed;top:60px;left:50%;transform:translate(-50%,-20px);background:var(--gold);color:var(--ink);
+    padding:10px 18px;border-radius:999px;font-weight:bold;opacity:0;transition:.4s;z-index:10;pointer-events:none;
+    box-shadow:0 4px 16px rgba(0,0,0,.3)}
+  #toast.show{opacity:1;transform:translate(-50%,0)}
+
+  #finale{position:fixed;inset:0;background:rgba(30,20,5,.8);display:none;align-items:center;justify-content:center;z-index:20;padding:16px}
+  #finale.show{display:flex}
+  .card{background:#fffaf0;color:var(--ink);border-radius:18px;max-width:420px;width:100%;padding:24px;text-align:center;
+    box-shadow:0 0 40px rgba(245,197,66,.6);box-sizing:border-box}
+  .card h2{margin:0 0 8px;font-size:22px}
+  .card p{line-height:1.8;font-size:14px}
+  .cal-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
+  .cal{border:2px solid transparent;border-radius:12px;padding:8px 4px;cursor:pointer;background:#f3e7c9;font-size:12px}
+  .cal .thumb{height:60px;border-radius:8px;margin-bottom:6px}
+  .cal.sel{border-color:var(--gold-deep)}
+  .btn{margin-top:16px;background:var(--gold);border:none;border-radius:999px;padding:10px 24px;font-weight:bold;font-size:15px;cursor:pointer;color:var(--ink)}
+  .btn:disabled{opacity:.4}
+  .close{background:none;border:none;color:#8a7650;margin-top:8px;cursor:pointer;font-size:13px}
+
+  #coord{position:fixed;left:10px;bottom:44px;z-index:30;display:none;background:#000c;color:#fff;font:13px monospace;padding:6px 10px;border-radius:6px}
+</style>
+</head>
+<body>
+<header><h1>ART QUEST</h1><div class="hr"><button id="help" aria-label="クエストの説明">？</button><div id="count">🔑 0 / 18</div></div></header>
+<div id="scroller">
+  <div id="town">
+    <img class="bg" src="town.jpg" alt="ART QUESTの街">
+  </div>
+</div>
+<div id="hint">← 左右にスクロールして街を歩こう →</div>
+<div id="toast"></div>
+<div id="finale"><div class="card" id="finaleCard"></div></div>
+<div id="intro"><div class="card" id="introCard"></div></div>
+<div id="coord"></div>
+
+<script>
+/* ===================== 設定 ===================== */
+// 家の位置（絵に対する％）と、その家のROOMのURL。
+// URLが "" の家は「準備中」。本番は "https://ユーザー名.github.io/リポジトリ名/" に。
+const HOUSES = [
+  { no:"01", x:23.2, y:11.5, url:"" },  // 青い尖塔のお城（主催者の部屋）
+  { no:"02", x: 8.6, y:48.6, url:"" },
+  { no:"03", x:14.6, y:64.9, url:"" },
+  { no:"04", x:21.4, y:82.6, url:"" },
+  { no:"05", x:28.2, y:42.9, url:"" },
+  { no:"06", x:32.3, y:25.2, url:"" },
+  { no:"07", x:33.3, y:58.6, url:"" },
+  { no:"08", x:36.6, y: 9.1, url:"" },
+  { no:"09", x:38.6, y:34.0, url:"" },
+  { no:"10", x:59.0, y:10.3, url:"" },
+  { no:"11", x:59.8, y:33.4, url:"" },
+  { no:"12", x:65.8, y:58.0, url:"" },
+  { no:"13", x:66.1, y:24.0, url:"" },
+  { no:"14", x:68.1, y:46.7, url:"" },
+  { no:"15", x:74.4, y:44.1, url:"" },
+  { no:"16", x:77.4, y:17.7, url:"" },
+  { no:"17", x:84.0, y:29.6, url:"" },
+  { no:"18", x:85.7, y:70.6, url:"" }
+];
+const CHEST_POS = { x:49.2, y:55.8 };   // 中央の広場
+const TOTAL = 18;
+const HALL_POS = { x:49.2, y:31.0 };   // 真ん中の館（タップでクエストの説明）
+
+/* クエストの説明（真ん中の館をタップすると出ます。文章は自由に書き換えてOK） */
+const INTRO = {
+  title: "ART QUEST へようこそ",
+  steps: [
+    `街の家は、${TOTAL}人の作家さんの部屋です。家をタップすると、その部屋に入れます。`,
+    "どの部屋にも、鍵がひとつだけ隠れています。作品や壁の絵をよく見て、見つけたら鍵をタップしてください。",
+    "鍵を見つけたら、画面の下の金色のバー「地図に戻って記録する」を押してください。地図の家に鍵が灯ります。",
+    `${TOTAL}本の鍵がそろうと、広場の宝箱が開きます。`
+  ],
+  notes: [
+    "鍵が見つからなくても、バーの「地図へもどる」で戻れます。部屋にしばらくいると、鍵の場所がふわっと光ります。",
+    "記録はこのスマホ（パソコン）のブラウザに残ります。別の端末やシークレットウィンドウでは引き継がれません。"
+  ],
+  button: "街を歩く"
+};
+const STORE_KEY = "artquest_keys_v1";
+const CAL_KEY = "artquest_calendar_v1";
+const CALENDARS = [
+  { id:"a", name:"カレンダーA", bg:"linear-gradient(135deg,#2b2f63,#7b6fd6)" },
+  { id:"b", name:"カレンダーB", bg:"linear-gradient(135deg,#ffb6c9,#ffe3a3)" },
+  { id:"c", name:"カレンダーC", bg:"linear-gradient(135deg,#2f6b4f,#b6e3a3)" }
+];
+const STAGE_TEXT = [
+  "宝箱は鎖でかたく閉ざされている…",
+  "鎖が少しゆるんできた",
+  "鎖がはずれた！あとは鍵だけ",
+  "宝箱が光りはじめた！",
+  "宝箱が開いた！"
+];
+
+/* ===================== 保存まわり ===================== */
+function isValidKey(k){ return /^(0[1-9]|1[0-8])$/.test(k); }
+function pad(n){ return String(n).padStart(2,"0"); }
+function loadKeys(){
+  try{ const a = JSON.parse(localStorage.getItem(STORE_KEY) || "[]");
+       return new Set(Array.isArray(a) ? a.filter(isValidKey) : []); }
+  catch(e){ return new Set(); }
+}
+function saveKeys(set){ try{ localStorage.setItem(STORE_KEY, JSON.stringify([...set].sort())); }catch(e){} }
+
+/* ===================== 街に家と宝箱を置く ===================== */
+const town = document.getElementById("town");
+// 作家さんの鍵の絵を置くフォルダ（背景透過のPNG。ファイル名は key01.png 〜 key18.png）
+const KEY_DIR = "keys/";
+const KEY_SVG = `<svg viewBox="0 0 40 20"><circle cx="8" cy="10" r="6.5" fill="none" stroke="#c99a1e" stroke-width="3.5"/>
+  <rect x="14" y="8.2" width="24" height="3.6" fill="#c99a1e"/><rect x="30" y="11" width="3.5" height="6" fill="#c99a1e"/>
+  <rect x="24" y="11" width="3.5" height="4.5" fill="#c99a1e"/></svg>`;
+
+HOUSES.forEach(h=>{
+  const b = document.createElement("button");
+  b.className = "house" + (h.url ? "" : " soon") + (h.y < 15 ? " edge" : "");
+  b.dataset.no = h.no;
+  b.style.left = h.x + "%"; b.style.top = h.y + "%";
+  if(h.w) b.style.width = h.w + "%";
+  b.setAttribute("aria-label", `ROOM ${h.no}`);
+  b.innerHTML = `<span class="badge"></span><span class="num">${h.no}</span>`;
+  b.querySelector(".badge").innerHTML = KEY_SVG;
+  b.addEventListener("click", ()=>{
+    if(editMode) return;
+    if(h.url) location.href = h.url;
+    else toast(`ROOM ${h.no} は準備中です`);
+  });
+  town.appendChild(b);
+});
+
+const chestWrap = document.createElement("button");
+chestWrap.id = "chestWrap";
+chestWrap.style.left = CHEST_POS.x + "%"; chestWrap.style.top = CHEST_POS.y + "%";
+chestWrap.setAttribute("aria-label","宝箱");
+chestWrap.innerHTML = `<div id="chest">${[0,1,2,3,4].map(i=>`<img src="chest${i}.webp" alt="" data-s="${i}">`).join("")}</div><span id="chestText"></span>`;
+chestWrap.addEventListener("click", ()=>{
+  if(editMode) return;
+  const n = loadKeys().size;
+  if(n >= TOTAL) showFinale();
+  else toast(`あと ${TOTAL-n} 個の鍵で宝箱が開くよ`);
+});
+town.appendChild(chestWrap);
+
+/* クエストの説明：真ん中の館か、上の「？」ボタンで開く */
+document.getElementById("help").addEventListener("click", ()=>showIntro());
+const hall = document.createElement("button");
+hall.id = "hall";
+hall.style.left = HALL_POS.x + "%"; hall.style.top = HALL_POS.y + "%";
+hall.setAttribute("aria-label","クエストの説明");
+hall.innerHTML = `<span class="label">クエストの説明</span>`;
+hall.addEventListener("click", ()=>{ if(!editMode) showIntro(); });
+town.appendChild(hall);
+function showIntro(){
+  const esc = t => String(t).replace(/&/g,"&amp;").replace(/</g,"&lt;");
+  document.getElementById("introCard").innerHTML = `
+    <h2>${esc(INTRO.title)}</h2>
+    <ol>${INTRO.steps.map(t=>`<li>${esc(t)}</li>`).join("")}</ol>
+    ${INTRO.notes.map(t=>`<div class="note">${esc(t)}</div>`).join("")}
+    <div class="center"><button class="btn" id="closeIntro">${esc(INTRO.button)}</button></div>`;
+  document.getElementById("closeIntro").onclick = ()=>document.getElementById("intro").classList.remove("show");
+  document.getElementById("intro").classList.add("show");
+}
+document.getElementById("intro").addEventListener("click", e=>{
+  if(e.target.id === "intro") e.currentTarget.classList.remove("show");
+});
+
+/* 鍵を取った家だけ、作家さんの鍵の絵を読み込む（無ければ金色の鍵マークのまま） */
+function useOwnKey(h){
+  if(h.dataset.keyTried) return;
+  h.dataset.keyTried = "1";
+  const im = new Image();
+  im.alt = "";
+  im.onload = ()=>{
+    const badge = h.querySelector(".badge");
+    badge.innerHTML = ""; badge.appendChild(im); badge.classList.add("own");
+  };
+  im.src = KEY_DIR + "key" + h.dataset.no + ".png";
+}
+
+/* ===================== 状態の反映 ===================== */
+/* 宝箱の段階：0 / 1〜5 / 6〜11 / 12〜17 / 18（17個で揺れる） */
+function stageOf(n){ return n===0?0 : n>=TOTAL?4 : n<=5?1 : n<=11?2 : 3; }
+function render(justNo){
+  const keys = loadKeys(), n = keys.size, s = stageOf(n);
+  document.getElementById("count").textContent = `🔑 ${n} / ${TOTAL}`;
+  document.querySelectorAll(".house").forEach(h=>{
+    h.classList.toggle("lit", keys.has(h.dataset.no));
+    if(keys.has(h.dataset.no)) useOwnKey(h);
+    h.classList.toggle("just", h.dataset.no === justNo);
+  });
+  const chest = document.getElementById("chest");
+  const prev = chest.dataset.s;
+  chest.className = "s"+s + (n === TOTAL-1 ? " wobble" : "");
+  chest.querySelectorAll("img").forEach(im=>im.classList.toggle("on", +im.dataset.s === s));
+  if(prev !== undefined && +prev !== s && s === 4){ chest.classList.add("opening"); }
+  chest.dataset.s = s;
+  document.getElementById("chestText").textContent =
+    n === TOTAL-1 ? "あと1個！宝箱がカタカタ揺れている…" : STAGE_TEXT[s];
+}
+
+/* ===================== スクロール・表示 ===================== */
+const scroller = document.getElementById("scroller");
+function scrollToPct(xPct, yPct, smooth){
+  scroller.scrollTo({
+    left: Math.max(0, town.clientWidth * xPct/100 - innerWidth/2),
+    top:  Math.max(0, town.clientHeight * yPct/100 - innerHeight/2),
+    behavior: smooth ? "smooth" : "auto"
+  });
+}
+scroller.addEventListener("scroll", ()=>{ document.getElementById("hint").style.opacity = 0; }, {once:true});
+
+// パソコン：マウスドラッグとホイールで左右に動かす
+let drag=null, moved=false;
+scroller.addEventListener("pointerdown", e=>{ if(e.pointerType!=="mouse") return;
+  drag={x:e.clientX,y:e.clientY,l:scroller.scrollLeft,t:scroller.scrollTop}; moved=false; });
+addEventListener("pointermove", e=>{ if(!drag) return;
+  const dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(Math.abs(dx)+Math.abs(dy)>5){ moved=true; scroller.classList.add("drag"); }
+  scroller.scrollLeft=drag.l-dx; scroller.scrollTop=drag.t-dy; });
+addEventListener("pointerup", ()=>{ drag=null; scroller.classList.remove("drag"); });
+scroller.addEventListener("click", e=>{ if(moved){ e.stopPropagation(); e.preventDefault(); moved=false; } }, true);
+scroller.addEventListener("wheel", e=>{
+  if(Math.abs(e.deltaY)>Math.abs(e.deltaX) && scroller.scrollHeight<=scroller.clientHeight+1){
+    scroller.scrollLeft += e.deltaY; e.preventDefault(); }
+}, {passive:false});
+
+let toastTimer;
+function toast(msg){
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
+}
+
+/* ===================== 完成 ===================== */
+function showFinale(){
+  let chosen = null;
+  try{ chosen = localStorage.getItem(CAL_KEY); }catch(e){}
+  const card = document.getElementById("finaleCard");
+  card.innerHTML = `
+    <h2>🎉 宝箱が開いた！</h2>
+    <p>${TOTAL}の部屋をめぐって、すべての鍵を集めました。<br>街のみんなから、あなたへのおくりもの。</p>
+    <p><b>好きなカレンダーをひとつ選んでね</b></p>
+    <div class="cal-list">${CALENDARS.map(c=>`
+      <div class="cal ${chosen===c.id?'sel':''}" data-id="${c.id}"><div class="thumb" style="background:${c.bg}"></div>${c.name}</div>`).join("")}
+    </div>
+    <button class="btn" id="decide" ${chosen?'':'disabled'}>これにする</button><br>
+    <button class="close" id="closeFinale">とじる</button>`;
+  card.querySelectorAll(".cal").forEach(c=>c.addEventListener("click",()=>{
+    card.querySelectorAll(".cal").forEach(x=>x.classList.remove("sel"));
+    c.classList.add("sel"); chosen = c.dataset.id;
+    document.getElementById("decide").disabled = false;
+  }));
+  document.getElementById("decide").onclick = ()=>{
+    try{ localStorage.setItem(CAL_KEY, chosen); }catch(e){}
+    const cal = CALENDARS.find(c=>c.id===chosen);
+    card.innerHTML = `<h2>${cal.name}</h2>
+      <div style="height:160px;border-radius:12px;background:${cal.bg}"></div>
+      <p>（試作：ここでダウンロードやリンクを出す予定）</p>
+      <button class="btn" id="closeFinale">地図に戻る</button>`;
+    document.getElementById("closeFinale").onclick = hideFinale;
+  };
+  document.getElementById("closeFinale").onclick = hideFinale;
+  document.getElementById("finale").classList.add("show");
+}
+function hideFinale(){ document.getElementById("finale").classList.remove("show"); }
+
+/* ===================== 起動 ===================== */
+const params = new URLSearchParams(location.search);
+const editMode = params.get("edit") === "1";
+const incoming = params.get("key");
+let justNo = null;
+
+if(incoming !== null){
+  if(isValidKey(incoming)){
+    const keys = loadKeys();
+    const isNew = !keys.has(incoming);
+    keys.add(incoming); saveKeys(keys);
+    justNo = isNew ? incoming : null;
+    toast(isNew ? `🔑 鍵${incoming}を記録しました！` : `鍵${incoming}はもう記録ずみです`);
+  }
+  params.delete("key");
+  const q = params.toString();
+  history.replaceState(null, "", location.pathname + (q ? "?"+q : "") + location.hash);
+}
+
+render(justNo);
+
+/* 初めて地図に来た人にだけ、クエストの説明を自動で出す（2回目からは「？」か館で開けます） */
+const INTRO_SEEN = "artquest_intro_seen_v1";
+let seen = false;
+try{ seen = localStorage.getItem(INTRO_SEEN) === "1"; }catch(e){}
+if(!seen && incoming === null && !editMode){
+  setTimeout(showIntro, 700);
+  try{ localStorage.setItem(INTRO_SEEN, "1"); }catch(e){}
+}
+
+function initialScroll(){
+  const h = HOUSES.find(h=>h.no===justNo);
+  if(h) scrollToPct(h.x, h.y, false);
+  else scrollToPct(CHEST_POS.x, CHEST_POS.y, false);
+}
+const bg = town.querySelector("img.bg");
+if(bg.complete) initialScroll(); else bg.addEventListener("load", initialScroll);
+
+if(justNo && loadKeys().size === TOTAL){
+  setTimeout(()=>scrollToPct(CHEST_POS.x, CHEST_POS.y, true), 1200);
+  setTimeout(showFinale, 2400);
+}
+
+// ?edit=1 … 絵をタップすると、その場所の x, y（％）を表示（家の位置合わせ用）
+if(editMode){
+  const c = document.getElementById("coord"); c.style.display = "block"; c.textContent = "絵をタップすると座標が出ます";
+  town.addEventListener("click", e=>{
+    const r = town.getBoundingClientRect();
+    const x = ((e.clientX - r.left)/r.width*100).toFixed(1), y = ((e.clientY - r.top)/r.height*100).toFixed(1);
+    c.textContent = `x:${x}, y:${y}`;
+  });
+}
+</script>
+</body>
+</html>
