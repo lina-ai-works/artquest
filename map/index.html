@@ -108,10 +108,37 @@
     box-shadow:0 0 40px rgba(245,197,66,.6);box-sizing:border-box}
   .card h2{margin:0 0 8px;font-size:22px}
   .card p{line-height:1.8;font-size:14px}
-  .cal-list{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:12px}
-  .cal{border:2px solid transparent;border-radius:12px;padding:8px 4px;cursor:pointer;background:#f3e7c9;font-size:12px}
-  .cal .thumb{height:60px;border-radius:8px;margin-bottom:6px}
-  .cal.sel{border-color:var(--gold-deep)}
+  /* 1年分のカレンダー */
+  #finale .card{max-width:560px;max-height:calc(100dvh - 32px);overflow-y:auto}
+  .cal-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:12px;margin-top:14px;text-align:left}
+  .cal{position:relative;cursor:pointer;border-radius:10px;overflow:hidden;background:#f3e7c9;
+    box-shadow:0 2px 8px rgba(80,50,0,.18);aspect-ratio:9/16;transition:transform .2s}
+  .cal:hover{transform:translateY(-2px)}
+  .cal img{width:100%;height:100%;object-fit:cover;display:block}
+  .cal .m{position:absolute;left:0;right:0;bottom:0;padding:14px 6px 5px;font-size:12px;font-weight:bold;color:#fff;
+    background:linear-gradient(180deg,rgba(40,25,0,0),rgba(40,25,0,.7));text-align:center}
+  .cal .chk{position:absolute;top:6px;right:6px;width:28px;height:28px;border-radius:50%;border:2px solid #fff;
+    background:rgba(40,25,0,.35);color:#fff;font-size:15px;line-height:24px;text-align:center;padding:0;cursor:pointer;
+    box-shadow:0 1px 4px rgba(0,0,0,.35)}
+  .cal.sel{box-shadow:0 0 0 3px var(--gold-deep),0 2px 8px rgba(80,50,0,.18)}
+  .cal.sel .chk{background:var(--gold);border-color:#fff6d0;color:var(--ink)}
+  .cal-tools{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:16px}
+  .cal-tools .btn{margin-top:0}
+  .btn.sub{background:#f3e7c9}
+  .cal-none{font-size:13px;color:#8a7650;margin-top:12px}
+  /* 大きく見る */
+  #calView{position:fixed;inset:0;z-index:30;background:rgba(20,12,2,.92);display:none;flex-direction:column;
+    align-items:center;justify-content:center;gap:14px;padding:calc(58px + env(safe-area-inset-top)) 16px max(16px,env(safe-area-inset-bottom))}
+  #calView.show{display:flex}
+  #calView img{max-width:min(76vw,520px);max-height:calc(100dvh - 190px);border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.5)}
+  #calView .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;justify-content:center}
+  #calView .row .btn{margin-top:0}
+  #calView .nav{position:absolute;top:50%;transform:translateY(-50%);width:40px;height:40px;border-radius:50%;
+    border:1px solid rgba(255,255,255,.5);background:rgba(40,25,0,.45);color:#fff;font-size:20px;cursor:pointer}
+  #cvPrev{left:6px} #cvNext{right:6px}
+  #calView .tip{font-size:12px;color:#e9dcc0}
+  #calView .x{position:absolute;top:max(10px,env(safe-area-inset-top));right:12px;width:44px;height:44px;border:none;
+    background:none;color:#fff;font-size:22px;cursor:pointer}
   .btn{margin-top:16px;background:var(--gold);border:none;border-radius:999px;padding:10px 24px;font-weight:bold;font-size:15px;cursor:pointer;color:var(--ink)}
   .btn:disabled{opacity:.4}
   .close{background:none;border:none;color:#8a7650;margin-top:8px;cursor:pointer;font-size:13px}
@@ -129,6 +156,12 @@
 <div id="hint">← 左右にスクロールして街を歩こう →</div>
 <div id="toast"></div>
 <div id="finale"><div class="card" id="finaleCard"></div></div>
+<div id="calView"><button class="x" id="cvClose" aria-label="閉じる">✕</button>
+  <img id="cvImg" alt="">
+  <button class="nav" id="cvPrev" aria-label="前の月">‹</button><button class="nav" id="cvNext" aria-label="次の月">›</button>
+  <div class="row"><button class="btn sub" id="cvSel"></button><button class="btn" id="cvSave">この月を保存</button></div>
+  <div class="tip" id="cvTip"></div>
+</div>
 <div id="intro"><div class="card" id="introCard"></div></div>
 <div id="coord"></div>
 
@@ -145,7 +178,7 @@ const HOUSES = [
   { no:"06", x:32.3, y:25.2, url:"" },
   { no:"07", x:33.3, y:58.6, url:"../room07/" },
   { no:"08", x:36.6, y: 9.1, url:"" },
-  { no:"09", x:38.6, y:34.0, url:"" },
+  { no:"09", x:38.6, y:34.0, url:"../room09/" },
   { no:"10", x:59.0, y:10.3, url:"" },
   { no:"11", x:59.8, y:33.4, url:"" },
   { no:"12", x:65.8, y:58.0, url:"" },
@@ -176,12 +209,12 @@ const INTRO = {
   button: "街を歩く"
 };
 const STORE_KEY = "artquest_keys_v1";
-const CAL_KEY = "artquest_calendar_v1";
-const CALENDARS = [
-  { id:"a", name:"カレンダーA", bg:"linear-gradient(135deg,#2b2f63,#7b6fd6)" },
-  { id:"b", name:"カレンダーB", bg:"linear-gradient(135deg,#ffb6c9,#ffe3a3)" },
-  { id:"c", name:"カレンダーC", bg:"linear-gradient(135deg,#2f6b4f,#b6e3a3)" }
-];
+/* 宝箱のおくりもの：1年分のカレンダー
+   calendars フォルダに「2026-12.jpg」のように、年と月の名前で入れてください（png でもOK）。
+   入っている月だけが、月の順に並びます */
+const CAL_DIR   = "calendars/";
+const CAL_FROM  = [2026, 12];   // 最初の月
+const CAL_TO    = [2027, 12];   // 最後の月
 const STAGE_TEXT = [
   "宝箱は鎖でかたく閉ざされている…",
   "鎖が少しゆるんできた",
@@ -328,36 +361,121 @@ function toast(msg){
   clearTimeout(toastTimer); toastTimer = setTimeout(()=>t.classList.remove("show"), 2600);
 }
 
-/* ===================== 完成 ===================== */
+/* ===================== 完成：1年分のカレンダー ===================== */
+function calMonths(){
+  const out = []; let [y,m] = CAL_FROM;
+  while(y < CAL_TO[0] || (y === CAL_TO[0] && m <= CAL_TO[1])){
+    out.push({ y, m, key: y + "-" + String(m).padStart(2,"0") });
+    m++; if(m > 12){ m = 1; y++; }
+  }
+  return out;
+}
+/* 入っている月だけを探す（jpg → png の順） */
+let calCache = null;
+function findCalendars(){
+  if(calCache) return calCache;
+  calCache = Promise.all(calMonths().map(c => new Promise(res=>{
+    const tryExt = exts => {
+      if(!exts.length) return res(null);
+      const im = new Image();
+      im.onload = ()=>res(Object.assign({}, c, { src: CAL_DIR + c.key + exts[0] }));
+      im.onerror = ()=>tryExt(exts.slice(1));
+      im.src = CAL_DIR + c.key + exts[0];
+    };
+    tryExt([".jpg",".png"]);
+  }))).then(list => list.filter(Boolean));
+  return calCache;
+}
+const calLabel = c => `${c.y}年${c.m}月`;
+let cals = [], picked = new Set(), viewing = 0;
+
 function showFinale(){
-  let chosen = null;
-  try{ chosen = localStorage.getItem(CAL_KEY); }catch(e){}
   const card = document.getElementById("finaleCard");
   card.innerHTML = `
     <h2>🎉 宝箱が開いた！</h2>
-    <p>${TOTAL}の部屋をめぐって、すべての鍵を集めました。<br>街のみんなから、あなたへのおくりもの。</p>
-    <p><b>好きなカレンダーをひとつ選んでね</b></p>
-    <div class="cal-list">${CALENDARS.map(c=>`
-      <div class="cal ${chosen===c.id?'sel':''}" data-id="${c.id}"><div class="thumb" style="background:${c.bg}"></div>${c.name}</div>`).join("")}
+    <p>${TOTAL}の部屋をめぐって、すべての鍵を集めました。<br>街のみんなから、1年分のカレンダーのおくりもの。</p>
+    <p><b>好きな月を選んで、保存してね</b><br><span style="font-size:12px;color:#8a7650">絵をタップすると大きく見られます</span></p>
+    <div class="cal-list" id="calList"><div class="cal-none">カレンダーを読み込んでいます…</div></div>
+    <div class="cal-tools">
+      <button class="btn sub" id="calAll">すべて選ぶ</button>
+      <button class="btn" id="calSave" disabled>選んだ月を保存</button>
     </div>
-    <button class="btn" id="decide" ${chosen?'':'disabled'}>これにする</button><br>
     <button class="close" id="closeFinale">とじる</button>`;
-  card.querySelectorAll(".cal").forEach(c=>c.addEventListener("click",()=>{
-    card.querySelectorAll(".cal").forEach(x=>x.classList.remove("sel"));
-    c.classList.add("sel"); chosen = c.dataset.id;
-    document.getElementById("decide").disabled = false;
-  }));
-  document.getElementById("decide").onclick = ()=>{
-    try{ localStorage.setItem(CAL_KEY, chosen); }catch(e){}
-    const cal = CALENDARS.find(c=>c.id===chosen);
-    card.innerHTML = `<h2>${cal.name}</h2>
-      <div style="height:160px;border-radius:12px;background:${cal.bg}"></div>
-      <p>（試作：ここでダウンロードやリンクを出す予定）</p>
-      <button class="btn" id="closeFinale">地図に戻る</button>`;
-    document.getElementById("closeFinale").onclick = hideFinale;
-  };
   document.getElementById("closeFinale").onclick = hideFinale;
   document.getElementById("finale").classList.add("show");
+  findCalendars().then(list=>{
+    cals = list;
+    const box = document.getElementById("calList");
+    if(!cals.length){ box.innerHTML = `<div class="cal-none">カレンダーは準備中です。</div>`; return; }
+    box.innerHTML = cals.map((c,i)=>`
+      <div class="cal" data-i="${i}">
+        <img src="${c.src}" alt="${calLabel(c)}のカレンダー" loading="lazy">
+        <span class="m">${calLabel(c)}</span>
+        <button class="chk" data-i="${i}" aria-label="${calLabel(c)}を選ぶ"></button>
+      </div>`).join("");
+    box.querySelectorAll(".cal").forEach(el=>el.addEventListener("click", e=>{
+      const i = +el.dataset.i;
+      if(e.target.closest(".chk")) toggleCal(i); else openCal(i);
+    }));
+    paintPicks();
+  });
+  document.getElementById("calAll").onclick = ()=>{
+    if(picked.size === cals.length) picked.clear(); else cals.forEach((_,i)=>picked.add(i));
+    paintPicks();
+  };
+  document.getElementById("calSave").onclick = ()=>saveCals([...picked].sort((a,b)=>a-b).map(i=>cals[i]));
+}
+function toggleCal(i){ picked.has(i) ? picked.delete(i) : picked.add(i); paintPicks(); }
+function paintPicks(){
+  document.querySelectorAll("#calList .cal").forEach(el=>{
+    const on = picked.has(+el.dataset.i);
+    el.classList.toggle("sel", on);
+    el.querySelector(".chk").textContent = on ? "✓" : "";
+  });
+  const sv = document.getElementById("calSave"), all = document.getElementById("calAll");
+  if(sv){ sv.disabled = !picked.size; sv.textContent = picked.size ? `選んだ月を保存（${picked.size}枚）` : "選んだ月を保存"; }
+  if(all) all.textContent = (cals.length && picked.size === cals.length) ? "選ぶのをやめる" : "すべて選ぶ";
+  if(document.getElementById("calView").classList.contains("show")) paintView();
+}
+
+/* 大きく見る */
+function openCal(i){ viewing = i; paintView(); document.getElementById("calView").classList.add("show"); }
+function paintView(){
+  const c = cals[viewing];
+  document.getElementById("cvImg").src = c.src;
+  document.getElementById("cvImg").alt = calLabel(c) + "のカレンダー";
+  document.getElementById("cvSel").textContent = picked.has(viewing) ? "✓ 選んでいます" : "この月を選ぶ";
+  document.getElementById("cvPrev").style.visibility = viewing > 0 ? "visible" : "hidden";
+  document.getElementById("cvNext").style.visibility = viewing < cals.length-1 ? "visible" : "hidden";
+  document.getElementById("cvTip").textContent = /iPhone|iPad/.test(navigator.userAgent)
+    ? "絵を長押しして「写真に保存」でも保存できます" : "";
+}
+document.getElementById("cvClose").onclick = ()=>document.getElementById("calView").classList.remove("show");
+document.getElementById("calView").addEventListener("click", e=>{ if(e.target.id === "calView") e.currentTarget.classList.remove("show"); });
+document.getElementById("cvPrev").onclick = ()=>{ if(viewing>0){ viewing--; paintView(); } };
+document.getElementById("cvNext").onclick = ()=>{ if(viewing<cals.length-1){ viewing++; paintView(); } };
+document.getElementById("cvSel").onclick = ()=>toggleCal(viewing);
+document.getElementById("cvSave").onclick = ()=>saveCals([cals[viewing]]);
+
+/* 保存：スマホは「写真に保存」できる共有画面、パソコンはダウンロード */
+async function saveCals(list){
+  if(!list.length) return;
+  const name = c => `ARTQUEST_${c.key}` + (c.src.endsWith(".png") ? ".png" : ".jpg");
+  try{
+    if(navigator.canShare && /Android|iPhone|iPad/.test(navigator.userAgent)){
+      const files = await Promise.all(list.map(async c=>{
+        const b = await (await fetch(c.src)).blob();
+        return new File([b], name(c), { type: b.type || "image/jpeg" });
+      }));
+      if(navigator.canShare({ files })){ await navigator.share({ files }); return; }
+    }
+  }catch(e){ if(e && e.name === "AbortError") return; }
+  list.forEach((c,i)=>setTimeout(()=>{
+    const a = document.createElement("a");
+    a.href = c.src; a.download = name(c);
+    document.body.appendChild(a); a.click(); a.remove();
+  }, i * 400));
+  if(list.length > 1) toast(`${list.length}枚を保存しています`);
 }
 function hideFinale(){ document.getElementById("finale").classList.remove("show"); }
 
