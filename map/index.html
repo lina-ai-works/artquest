@@ -448,8 +448,8 @@ function paintView(){
   document.getElementById("cvSel").textContent = picked.has(viewing) ? "✓ 選んでいます" : "この月を選ぶ";
   document.getElementById("cvPrev").style.visibility = viewing > 0 ? "visible" : "hidden";
   document.getElementById("cvNext").style.visibility = viewing < cals.length-1 ? "visible" : "hidden";
-  document.getElementById("cvTip").textContent = /iPhone|iPad/.test(navigator.userAgent)
-    ? "絵を長押しして「写真に保存」でも保存できます" : "";
+  document.getElementById("cvTip").textContent = /Android|iPhone|iPad/.test(navigator.userAgent)
+    ? "保存できないときは、絵を長押しして保存してください" : "";
 }
 document.getElementById("cvClose").onclick = ()=>document.getElementById("calView").classList.remove("show");
 document.getElementById("calView").addEventListener("click", e=>{ if(e.target.id === "calView") e.currentTarget.classList.remove("show"); });
@@ -471,6 +471,7 @@ async function saveCals(list){
       if(navigator.canShare({ files })){ await navigator.share({ files }); return; }
     }
   }catch(e){ if(e && e.name === "AbortError") return; }
+  if(/Android|iPhone|iPad/.test(navigator.userAgent)){ openCal(cals.indexOf(list[0])); toast("絵を長押しして、保存してください"); return; }
   list.forEach((c,i)=>setTimeout(()=>{
     const a = document.createElement("a");
     a.href = c.src; a.download = name(c);
