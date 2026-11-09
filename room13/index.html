@@ -2,10 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1, minimum-scale=1, viewport-fit=cover">
 <title>ART QUEST</title>
-<style>.art .tag{left:calc(var(--gap) * -.45);right:calc(var(--gap) * -.45)}
-.scene .art .tag{left:calc(var(--sh) * -.13);right:calc(var(--sh) * -.13)}
+<style>
 /* ============================================================
    触らなくて大丈夫なエリア（ここから下はそのままでOK）
    ART QUEST 展示室：作品2点＋プロフィール
@@ -141,6 +140,11 @@ img{display:block}
   text-align:center;line-height:1.6}
 .tag b{display:block;font-weight:400;font-family:var(--mincho);font-size:12px;
   letter-spacing:.1em;color:var(--on-wall);margin-bottom:2px}
+/* 作品名が長くても、となりの作品名に重ならないように（となりとの間の半分まで） */
+.art .tag{left:calc(var(--gap) * -.45);right:calc(var(--gap) * -.45)}
+.scene .art .tag{left:calc(var(--sh) * -.13);right:calc(var(--sh) * -.13)}
+/* 作品名の中の \n で改行できます */
+.tag b,.lb-text h2{white-space:pre-line}
 /* 壁の終わりの出口 */
 .exit{
   flex:0 0 auto;align-self:center;display:flex;flex-direction:column;
@@ -418,8 +422,8 @@ const CONFIG = {
 /* 部屋の名前と、作品のタイトル（作品は2点です） */
 const ROOMS = [
   { name:"ART QUEST ROOM", jp:"", works:[
-      { file:"art01.jpg", title:"Autumn Hat Boutique 　　〜秋色の帽子屋さん〜", caption:"" },
-      { file:"art02.jpg", title:"Autumn Hat Boutique 　　〜秋色の帽子屋さん〜", caption:"" }
+      { file:"art01.jpg", title:"Autumn Hat Boutique\n～秋色の帽子屋さん～", caption:"" },
+      { file:"art02.jpg", title:"Autumn Hat Boutique\n～秋色の帽子屋さん～", caption:"" }
   ]}
 ];
 
