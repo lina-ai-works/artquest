@@ -471,7 +471,6 @@ async function saveCals(list){
       if(navigator.canShare({ files })){ await navigator.share({ files }); return; }
     }
   }catch(e){ if(e && e.name === "AbortError") return; }
-  if(/Android|iPhone|iPad/.test(navigator.userAgent)){ openCal(cals.indexOf(list[0])); toast("絵を長押しして、保存してください"); return; }
   list.forEach((c,i)=>setTimeout(()=>{
     const a = document.createElement("a");
     a.href = c.src; a.download = name(c);
