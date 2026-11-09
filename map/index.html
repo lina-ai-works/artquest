@@ -401,6 +401,7 @@ function showFinale(){
       <button class="btn sub" id="calAll">すべて選ぶ</button>
       <button class="btn" id="calSave" disabled>選んだ月を保存</button>
     </div>
+    <p style="font-size:12px;color:#8a7650;margin-top:10px">「保存」を押して画面が切り替わったら、絵を長押しして保存してください</p>
     <button class="close" id="closeFinale">とじる</button>`;
   document.getElementById("closeFinale").onclick = hideFinale;
   document.getElementById("finale").classList.add("show");
@@ -449,7 +450,7 @@ function paintView(){
   document.getElementById("cvPrev").style.visibility = viewing > 0 ? "visible" : "hidden";
   document.getElementById("cvNext").style.visibility = viewing < cals.length-1 ? "visible" : "hidden";
   document.getElementById("cvTip").textContent = /Android|iPhone|iPad/.test(navigator.userAgent)
-    ? "保存できないときは、絵を長押しして保存してください" : "";
+    ? "「この月を保存」を押して画面が切り替わったら、絵を長押しして保存してください" : "";
 }
 document.getElementById("cvClose").onclick = ()=>document.getElementById("calView").classList.remove("show");
 document.getElementById("calView").addEventListener("click", e=>{ if(e.target.id === "calView") e.currentTarget.classList.remove("show"); });
