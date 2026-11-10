@@ -1,6 +1,13 @@
 <!doctype html>
 <html lang="ja">
-<head>
+<head><!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-DQ4CTR6HFD"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-DQ4CTR6HFD');
+</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ART QUEST 地図</title>
@@ -391,10 +398,11 @@ const calLabel = c => `${c.y}年${c.m}月`;
 let cals = [], picked = new Set(), viewing = 0;
 
 function showFinale(){
+  if(window.gtag) gtag('event','chest_open');
   const card = document.getElementById("finaleCard");
   card.innerHTML = `
     <h2>🎉 宝箱が開いた！</h2>
-    <p>${TOTAL}の部屋をめぐって、すべての鍵を集めました。<br>街のみんなからこれからの1年を彩るカレンダーのおくりもの。</p>
+    <p>${TOTAL}の部屋をめぐって、すべての鍵を集めました。<br>街のみんなから、<br>これからの1年を彩るカレンダーのおくりもの。</p>
     <p><b>好きな月を選んで、保存してね</b><br><span style="font-size:12px;color:#8a7650">絵をタップすると大きく見られます</span></p>
     <div class="cal-list" id="calList"><div class="cal-none">カレンダーを読み込んでいます…</div></div>
     <div class="cal-tools">
@@ -462,6 +470,7 @@ document.getElementById("cvSave").onclick = ()=>saveCals([cals[viewing]]);
 /* 保存：スマホは「写真に保存」できる共有画面、パソコンはダウンロード */
 async function saveCals(list){
   if(!list.length) return;
+  if(window.gtag) list.forEach(c=>gtag('event','calendar_save',{month:c.key}));
   const name = c => `ARTQUEST_${c.key}` + (c.src.endsWith(".png") ? ".png" : ".jpg");
   try{
     if(navigator.canShare && /Android|iPhone|iPad/.test(navigator.userAgent)){
@@ -492,6 +501,7 @@ if(incoming !== null){
     const keys = loadKeys();
     const isNew = !keys.has(incoming);
     keys.add(incoming); saveKeys(keys);
+    if(isNew && window.gtag) gtag('event','key_found',{key_no:incoming});
     justNo = isNew ? incoming : null;
     toast(isNew ? `🔑 鍵${incoming}を記録しました！` : `鍵${incoming}はもう記録ずみです`);
   }
