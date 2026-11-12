@@ -501,6 +501,7 @@ if(incoming !== null){
 }
 
 render(justNo);
+  if(loadKeys().size >= TOTAL - 1) findCalendars();
 
 /* 初めて地図に来た人にだけ、クエストの説明を自動で出す（2回目からは「？」か館で開けます） */
 const INTRO_SEEN = "artquest_intro_seen_v1";
